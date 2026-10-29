@@ -27,8 +27,8 @@ O painel tenta usar a API de contatos do navegador. Se ela não estiver disponí
 
 ## Cloudflare Pages e armazenamento
 
-O app usa uma Pages Function para servir a página e a API. O binding `convited` acessa um namespace Workers KV configurado em `wrangler.toml`. O namespace precisa existir na conta Cloudflare usada no deploy. Também é possível configurar o binding KV em **Pages → Settings → Bindings** e redeployar.
+O app usa uma Pages Function para servir a página e a API. O binding `cha_panela_kv` acessa um namespace Workers KV configurado em `wrangler.toml`. O namespace precisa existir na conta Cloudflare usada no deploy. Também é possível configurar o binding KV em **Pages → Settings → Bindings** e redeployar.
 
-Para publicar via GitHub, conecte este repositório como projeto Pages e use `npm run build` como comando de build e `public` como diretório de saída. Configure `ADMIN_PASSWORD` como variável de ambiente privada antes de publicar e associe o namespace KV `convited` ao projeto.
+Para publicar via GitHub, conecte este repositório como projeto Pages e use `npm run build` como comando de build e `public` como diretório de saída. A variável `ADMIN_PASSWORD` está definida como `admin123` em `wrangler.toml`; altere-a antes de publicar e associe o namespace KV `cha_panela_kv` ao projeto.
 
 O plano Workers Free inclui Workers KV com cotas diárias limitadas. Consulte os limites atuais na [página de preços da Cloudflare](https://developers.cloudflare.com/workers/platform/pricing/).

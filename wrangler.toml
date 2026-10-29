@@ -1,1 +1,10 @@
+name = "panela-cha"
+pages_build_output_dir = "./public"
+compatibility_date = "2026-10-29"
 
+[vars]
+ADMIN_PASSWORD = "admin123"
+
+[[kv_namespaces]]
+binding = "cha_panela_kv"
+id = "9046bb899f3040e3bb487b117902b60b"

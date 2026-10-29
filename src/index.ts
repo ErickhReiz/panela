@@ -4,6 +4,7 @@ import { renderInviteHtml } from "./templates/invite";
 import { renderAdminLoginHtml, renderAdminDashboardHtml } from "./templates/admin";
 
 export interface Env {
+  cha_panela_kv?: KVNamespace;
   convited?: KVNamespace;
   CONVITES?: KVNamespace;
   ADMIN_PASSWORD?: string;
@@ -15,8 +16,8 @@ export default {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
-    // Get KV binding (support both 'convited' as in wrangler.toml and 'CONVITES')
-    const kv = env.convited || env.CONVITES;
+    // Get KV binding from the Pages/Wrangler config (retain older binding aliases).
+    const kv = env.cha_panela_kv || env.convited || env.CONVITES;
     if (!kv) {
       return new Response("KV Namespace binding não encontrado no wrangler.toml.", { status: 500 });
     }
@@ -24,6 +25,7 @@ export default {
     const db = new DB(kv);
     const defaultAdminPass = env.ADMIN_PASSWORD || "admin";
     const config = await db.getConfig(defaultAdminPass);
+    const activeAdminPassword = env.ADMIN_PASSWORD || config.adminPassword || defaultAdminPass;
 
     // --- Helper Functions ---
     const getSessionToken = () => {
@@ -40,7 +42,7 @@ export default {
     const isAuthenticated = () => {
       const token = getSessionToken();
       if (!token) return false;
-      const expectedToken = btoa(`admin:${config.adminPassword || defaultAdminPass}`);
+      const expectedToken = btoa(`admin:${activeAdminPassword}`);
       return token === expectedToken;
     };
 
@@ -137,7 +139,7 @@ export default {
         password = body.password || "";
       }
 
-      const activePassword = config.adminPassword || defaultAdminPass;
+      const activePassword = activeAdminPassword;
       if (password === activePassword) {
         const token = btoa(`admin:${activePassword}`);
         return new Response(null, {
