@@ -8,6 +8,7 @@ export interface Env {
   convited?: KVNamespace;
   CONVITES?: KVNamespace;
   ADMIN_PASSWORD?: string;
+  BASE_URL?: string;
   ASSETS?: { fetch: (request: Request | string | URL) => Promise<Response> };
 }
 
@@ -15,6 +16,7 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const pathname = url.pathname;
+    const baseUrl = (env.BASE_URL || url.origin).replace(/\/$/, "");
 
     // Get KV binding from the Pages/Wrangler config (retain older binding aliases).
     const kv = env.cha_panela_kv || env.convited || env.CONVITES;
@@ -73,7 +75,7 @@ export default {
       const routeMode = pathname.startsWith("/familia/") ? "familia" : pathname.startsWith("/pessoa/") ? "pessoa" : undefined;
       const code = shortPersonPath ? pathname.slice(1).toLowerCase().trim() : pathname.split("/")[2]?.toLowerCase().trim();
       if (!code) {
-        return Response.redirect(`${url.origin}/`, 302);
+        return Response.redirect(`${baseUrl}/`, 302);
       }
 
       const invite = await db.getInvite(code);
@@ -99,7 +101,7 @@ export default {
         `, 404);
       }
 
-      return html(renderInviteHtml(invite, config, url.origin));
+      return html(renderInviteHtml(invite, config, baseUrl));
     }
 
     // 3. PUBLIC RSVP API: POST /api/rsvp
@@ -124,7 +126,7 @@ export default {
     // 4. ADMIN LOGIN PAGE & ACTION
     if (pathname === "/admin") {
       if (isAuthenticated()) {
-        return html(renderAdminDashboardHtml(config, url.origin));
+        return html(renderAdminDashboardHtml(config, baseUrl));
       }
       return html(renderAdminLoginHtml());
     }
