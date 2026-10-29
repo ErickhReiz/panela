@@ -68,9 +68,10 @@ export default {
     }
 
     // 2. PUBLIC INVITATION PAGE: /convite/:code or /c/:code
-    if (pathname.startsWith("/convite/") || pathname.startsWith("/c/") || pathname.startsWith("/familia/") || pathname.startsWith("/pessoa/")) {
+    const shortPersonPath = pathname.split("/").filter(Boolean).length === 1 && pathname !== "/admin";
+    if (pathname.startsWith("/convite/") || pathname.startsWith("/c/") || pathname.startsWith("/familia/") || pathname.startsWith("/pessoa/") || shortPersonPath) {
       const routeMode = pathname.startsWith("/familia/") ? "familia" : pathname.startsWith("/pessoa/") ? "pessoa" : undefined;
-      const code = pathname.split("/")[2]?.toLowerCase().trim();
+      const code = shortPersonPath ? pathname.slice(1).toLowerCase().trim() : pathname.split("/")[2]?.toLowerCase().trim();
       if (!code) {
         return Response.redirect(`${url.origin}/`, 302);
       }
@@ -170,19 +171,6 @@ export default {
         return json({ success: false, error: "Não autorizado." }, 401);
       }
 
-      // CONTACTS FALLBACK: names from the workspace Markdown file.
-      if (pathname === "/api/admin/contacts" && request.method === "GET") {
-        const asset = env.ASSETS
-          ? await env.ASSETS.fetch(new URL("/contatos.md", url.origin))
-          : new Response("", { status: 404 });
-        const markdown = asset.ok ? await asset.text() : "";
-        const contacts = markdown.split(/\r?\n/).map(line => line.trim())
-          .filter(line => line && !line.startsWith("#"))
-          .map(line => line.replace(/^(?:[-*+]\s+|\d+[.)]\s+)/, "").trim())
-          .filter(line => line && !/^nome(s)?$/i.test(line));
-        return json(contacts);
-      }
-
       // GET ALL INVITES: GET /api/admin/invites
       if (pathname === "/api/admin/invites" && request.method === "GET") {
         const invites = await db.getAllInvites();
@@ -214,7 +202,6 @@ export default {
           code,
           title: body.title,
           mode: body.mode === "pessoa" ? "pessoa" : "familia",
-          customMessage: body.customMessage || "",
           guests: body.guests,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
@@ -237,7 +224,6 @@ export default {
 
         existing.title = body.title || existing.title;
         existing.mode = body.mode === "pessoa" ? "pessoa" : body.mode === "familia" ? "familia" : existing.mode || "familia";
-        existing.customMessage = body.customMessage !== undefined ? body.customMessage : existing.customMessage;
         if (body.guests && Array.isArray(body.guests)) {
           existing.guests = body.guests;
         }

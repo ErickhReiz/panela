@@ -1,6 +1,7 @@
 export interface Guest {
   id: string;
   name: string;
+  phone?: string;
   confirmed: boolean | null; // true: confirmed, false: declined, null: pending
   dietRestrictions?: string;
   confirmedAt?: string | null;
@@ -10,7 +11,6 @@ export interface Invitation {
   code: string; // Unique URL slug/code
   title: string; // Group / Family name (e.g., "Família Silva", "Gabriel & Luana")
   mode?: "familia" | "pessoa";
-  customMessage?: string;
   guests: Guest[];
   createdAt: string;
   updatedAt: string;
@@ -32,6 +32,7 @@ export interface WeddingConfig {
   cornerRadius: number;
   shadowStrength: number;
   adminPassword?: string;
+  sendMode: "familia" | "pessoa";
 }
 
 const DEFAULT_CONFIG: WeddingConfig = {
@@ -49,7 +50,8 @@ const DEFAULT_CONFIG: WeddingConfig = {
   pageColor: "#f6f2e9",
   cornerRadius: 18,
   shadowStrength: 24,
-  adminPassword: "admin"
+  adminPassword: "admin",
+  sendMode: "familia"
 };
 
 export class DB {

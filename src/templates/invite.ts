@@ -445,15 +445,6 @@ export function renderInviteHtml(invite: Invitation, config: WeddingConfig, base
       </div>
     </div>
 
-    <!-- Custom Message if available -->
-    ${invite.customMessage ? `
-    <div class="section-card" style="text-align: center; padding: 24px;">
-      <p style="font-style: italic; color: var(--accent-gold-light); font-size: 1.05rem;">
-        "${invite.customMessage}"
-      </p>
-    </div>
-    ` : ''}
-
     <!-- RSVP Section -->
     <div class="section-card">
       <h2 class="section-title">Confirme sua presença</h2>

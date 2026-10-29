@@ -1,0 +1,42 @@
+2026-10-29T02:14:58.992Z	Initializing build environment...
+2026-10-29T02:15:01.036Z	Success: Finished initializing build environment
+2026-10-29T02:15:02.883Z	Cloning repository...
+2026-10-29T02:15:04.485Z	Restoring from dependencies cache
+2026-10-29T02:15:04.486Z	Restoring from build output cache
+2026-10-29T02:15:04.489Z	Detected the following tools from environment: npm@10.9.2, nodejs@24.22.1
+2026-10-29T02:15:04.695Z	Installing project dependencies: npm clean-install --progress=false
+2026-10-29T02:15:06.091Z	npm warn deprecated rollup-plugin-inject@3.0.2: This package has been deprecated and is no longer maintained. Please use @rollup/plugin-inject.
+2026-10-29T02:15:06.163Z	npm warn deprecated sourcemap-codec@1.4.8: Please use @jridgewell/sourcemap-codec instead
+2026-10-29T02:15:07.976Z	
+2026-10-29T02:15:07.976Z	added 61 packages in 3s
+2026-10-29T02:15:07.976Z	
+2026-10-29T02:15:07.976Z	6 packages are looking for funding
+2026-10-29T02:15:07.976Z	  run `npm fund` for details
+2026-10-29T02:15:08.429Z	Executing user build command: npm run build
+2026-10-29T02:15:08.912Z	
+2026-10-29T02:15:08.912Z	> panela-cha@1.0.0 build
+2026-10-29T02:15:08.912Z	> node scripts/copy-contacts.mjs
+2026-10-29T02:15:08.912Z	
+2026-10-29T02:15:08.962Z	Success: Build command completed
+2026-10-29T02:15:09.369Z	Executing user deploy command: npx wrangler deploy
+2026-10-29T02:15:10.310Z	
+2026-10-29T02:15:10.311Z	 ⛅️ wrangler 3.114.17 (update available 4.155.0)
+2026-10-29T02:15:10.311Z	------------------------------------------------
+2026-10-29T02:15:10.311Z	
+2026-10-29T02:15:10.371Z	▲ [WARNING] The version of Wrangler you are using is now out-of-date.
+2026-10-29T02:15:10.372Z	
+2026-10-29T02:15:10.372Z	  Please update to the latest version to prevent critical errors.
+2026-10-29T02:15:10.372Z	  Run `npm install --save-dev wrangler@4` to update to the latest version.
+2026-10-29T02:15:10.372Z	  After installation, run Wrangler with `npx wrangler`.
+2026-10-29T02:15:10.372Z	
+2026-10-29T02:15:10.372Z	
+2026-10-29T02:15:10.377Z	
+2026-10-29T02:15:10.380Z	✘ [ERROR] It looks like you've run a Workers-specific command in a Pages project.
+2026-10-29T02:15:10.381Z	
+2026-10-29T02:15:10.381Z	  For Pages, please run `wrangler pages deploy` instead.
+2026-10-29T02:15:10.381Z	
+2026-10-29T02:15:10.381Z	
+2026-10-29T02:15:10.381Z	
+2026-10-29T02:15:10.382Z	Cloudflare collects anonymous telemetry about your usage of Wrangler. Learn more at https://github.com/cloudflare/workers-sdk/tree/main/packages/wrangler/telemetry.md
+2026-10-29T02:15:10.392Z	🪵  Logs were written to "/opt/buildhome/.config/.wrangler/logs/wrangler-2026-10-29_02-15-09_985.log"
+2026-10-29T02:15:10.467Z	Failed: error occurred while running deploy command
