@@ -1,16 +1,29 @@
 {
   "name": "panela-cha",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "npm run build && wrangler pages dev public",
-    "deploy": "npm run build && wrangler pages deploy public",
-    "types": "wrangler types",
-    "build": "node scripts/copy-contacts.mjs"
+    "dev": "vite build && wrangler dev",
+    "dev:ui": "vite",
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json && tsc -p worker/tsconfig.json",
+    "deploy": "npm run build && wrangler deploy",
+    "types": "wrangler types"
+  },
+  "dependencies": {
+    "canvas-confetti": "^1.9.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20240320.0",
-    "typescript": "^5.4.0",
-    "wrangler": "^3.40.0"
+    "@cloudflare/workers-types": "^5.20261023.1",
+    "@types/canvas-confetti": "^1.6.4",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "wrangler": "^4.40.0"
   }
 }

@@ -1,8 +1,16 @@
-name = "panela-cha"
-pages_build_output_dir = "./public"
+# Worker "panela": API em /api/* + app React (Vite) servido como Static Assets.
+name = "panela"
+main = "worker/index.ts"
 compatibility_date = "2026-10-29"
 
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
 [vars]
+# Recomendado: remover daqui e usar `npx wrangler secret put ADMIN_PASSWORD`.
 ADMIN_PASSWORD = "admin123"
 
 [[kv_namespaces]]

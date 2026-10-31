@@ -1,33 +1,55 @@
 # Chá de panela · Convites e confirmações
 
-Aplicação de convites para chá de panela construída em TypeScript, Cloudflare Pages Functions e Cloudflare KV. O painel administrativo permite cadastrar convites por família ou por pessoa, personalizar o convite e acompanhar confirmações.
+App de convites para chá de panela: front-end em **React + Vite** e API em um **Cloudflare Worker** com **Workers KV**. O painel administrativo permite cadastrar convites por família ou por pessoa, personalizar o convite e acompanhar confirmações.
+
+Produção: https://panela.erickhreiz.workers.dev
+
+## Estrutura
+
+```
+src/client/        App React (páginas públicas e painel /admin)
+src/shared/        Tipos e utilitários usados pelo app e pelo Worker
+worker/            Worker: API em /api/* (KV, login, CSV)
+public/            Arquivos estáticos copiados para o build
+wrangler.toml      Worker "panela" + Static Assets (dist/) + binding KV
+```
+
+O Worker só roda em `/api/*`; todas as outras rotas servem o app React (`not_found_handling = "single-page-application"`).
 
 ## Desenvolvimento
 
 ```bash
 npm install
-npm run dev
+npm run dev        # build do React + wrangler dev em http://localhost:8787
+npm run dev:ui     # (opcional) Vite com hot reload; requer `wrangler dev` rodando na 8787
+npm run typecheck
 ```
 
-- Página inicial: `http://localhost:8788/`
-- Painel: `http://localhost:8788/admin`
+- Página inicial: `/`
+- Painel: `/admin`
+
+## Deploy
+
+```bash
+npm run deploy     # vite build + wrangler deploy
+```
+
+Na integração Git do Cloudflare (Workers Builds), use `npm run build` como comando de build e `npx wrangler deploy` como comando de deploy.
+
+A senha do painel vem de `ADMIN_PASSWORD`. Recomenda-se removê-la do `wrangler.toml` e configurá-la como secret:
+
+```bash
+npx wrangler secret put ADMIN_PASSWORD
+```
 
 ## Convites
 
 No painel, escolha **Família** para reunir vários convidados em um link ou **Pessoa** para criar um link individual. Os links de pessoa usam `/<slug>` e os de família usam `/familia/<slug>`. Os caminhos antigos `/pessoa/<slug>`, `/convite/<slug>` e `/c/<slug>` continuam aceitos.
 
-A aba **Preview** acompanha os dados do convite. Em **Configurações**, altere nome, data, horário, local, endereço, cores, arredondamento e intensidade da sombra. A paleta inicial segue a referência em `image.png`: azul-marinho, marfim e detalhes botânicos.
+A aba **Preview** mostra o cartão do convite. Em **Configurações**, altere nome, data, horário, local, endereço, cores, arredondamento e sombra. A paleta inicial segue a referência em `image.png`: azul-marinho, marfim e detalhes botânicos.
 
-Os convidados podem confirmar ou recusar presença e informar observações ou restrições alimentares. O painel gera links para copiar e compartilhar no WhatsApp e exporta a lista em CSV.
+Os convidados confirmam ou recusam presença e informam observações ou restrições alimentares. O painel gera links para copiar e compartilhar no WhatsApp e exporta a lista em CSV.
 
 ## Contatos
 
-A importação múltipla usa a agenda do aparelho quando o navegador oferece essa função. No modo **Família**, os contatos selecionados entram como convidados do mesmo link; no modo **Pessoa**, cada contato gera um convite individual e números já cadastrados são ignorados.
-
-## Cloudflare Pages e armazenamento
-
-O app usa uma Pages Function para servir a página e a API. O binding `cha_panela_kv` acessa um namespace Workers KV configurado em `wrangler.toml`. O namespace precisa existir na conta Cloudflare usada no deploy. Também é possível configurar o binding KV em **Pages → Settings → Bindings** e redeployar.
-
-Para publicar via GitHub, conecte este repositório como projeto Pages e use `npm run build` como comando de build e `public` como diretório de saída. Associe o namespace KV `cha_panela_kv` ao projeto Pages.
-
-O plano Workers Free inclui Workers KV com cotas diárias limitadas. Consulte os limites atuais na [página de preços da Cloudflare](https://developers.cloudflare.com/workers/platform/pricing/).
+A importação múltipla usa a agenda do aparelho quando o navegador oferece essa função (Contact Picker API). No modo **Família**, os contatos selecionados entram como convidados do mesmo link; no modo **Pessoa**, cada contato gera um convite individual e números já cadastrados são ignorados.
