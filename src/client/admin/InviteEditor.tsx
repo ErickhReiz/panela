@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { EventConfig, Guest, Invitation, invitePath, slugify } from "../../shared/types";
 import { api } from "../api";
+import { Contact, hasContactPicker, parseContacts, phoneKey, pickFromAgenda } from "./contacts";
 import { InvitePreview } from "./InvitePreview";
 import type { ShowToast } from "./useToast";
 
@@ -19,10 +20,7 @@ interface Props {
 
 let rowSeq = 0;
 const newRow = (name = "", phone = "", id = ""): Row => ({ key: `r${++rowSeq}`, id, name, phone });
-const phoneKey = (phone?: string) => String(phone || "").replace(/\D/g, "");
 const newGuestId = (i: number) => `g_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`;
-
-type ContactsManager = { select: (props: string[], opts: { multiple: boolean }) => Promise<Array<{ name?: string[]; tel?: string[] }>> };
 
 export function InviteEditor({ invite, focusGuestId, config, allInvites, showToast, onClose, onSaved, onReload }: Props) {
   const mode = invite?.mode || config.sendMode || "familia";
@@ -33,7 +31,12 @@ export function InviteEditor({ invite, focusGuestId, config, allInvites, showToa
     invite ? invite.guests.map(g => newRow(g.name, g.phone || "", g.id)) : [newRow()]
   );
   const [saving, setSaving] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importing, setImporting] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const pickerAvailable = hasContactPicker();
+  const parsedImport = importOpen ? parseContacts(importText) : [];
 
   useEffect(() => {
     if (!focusGuestId) return;
@@ -57,19 +60,37 @@ export function InviteEditor({ invite, focusGuestId, config, allInvites, showToa
   }
 
   async function pickContacts() {
-    const contacts = (navigator as Navigator & { contacts?: ContactsManager }).contacts;
-    if (!contacts?.select) {
-      showToast("A importação da agenda não está disponível neste navegador.");
-      return;
-    }
     try {
-      const picked = await contacts.select(["name", "tel"], { multiple: true });
-      const selected = picked
-        .filter(c => c.name?.[0])
-        .map(c => ({ name: c.name![0].trim(), phone: c.tel?.[0] || "" }));
+      await importContacts(await pickFromAgenda());
+    } catch (err) {
+      if ((err as Error)?.name !== "AbortError") showToast("Não foi possível importar os contatos selecionados");
+    }
+  }
+
+  async function readFile(file: File | undefined) {
+    if (!file) return;
+    const text = await file.text();
+    setImportText(prev => (prev.trim() ? prev.trimEnd() + "\n" : "") + text);
+  }
+
+  async function confirmImport() {
+    setImporting(true);
+    try {
+      if (await importContacts(parsedImport)) {
+        setImportText("");
+        setImportOpen(false);
+      }
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  /** Adiciona contatos ao convite (família) ou cria um convite por contato (pessoa). */
+  async function importContacts(selected: Contact[]): Promise<boolean> {
+    try {
       if (!selected.length) {
-        showToast("Nenhum contato selecionado");
-        return;
+        showToast("Nenhum contato encontrado");
+        return false;
       }
 
       if (mode === "familia") {
@@ -83,7 +104,7 @@ export function InviteEditor({ invite, focusGuestId, config, allInvites, showToa
         }
         setRows(prev => [...prev.filter(r => r.name.trim() || r.phone.trim()), ...additions]);
         showToast(`${additions.length} contato(s) adicionado(s) à família`);
-        return;
+        return true;
       }
 
       // Modo pessoa: um convite individual por contato.
@@ -119,8 +140,10 @@ export function InviteEditor({ invite, focusGuestId, config, allInvites, showToa
         `${created} convite(s) individual(is) criado(s)` + (duplicates ? `, ${duplicates} duplicado(s) ignorado(s)` : "")
       );
       if (created) onClose();
-    } catch (err) {
-      if ((err as Error)?.name !== "AbortError") showToast("Não foi possível importar os contatos selecionados");
+      return created > 0;
+    } catch {
+      showToast("Não foi possível importar os contatos");
+      return false;
     }
   }
 
@@ -234,10 +257,57 @@ export function InviteEditor({ invite, focusGuestId, config, allInvites, showToa
                   <button type="button" className="btn small" onClick={() => setRows(prev => [...prev, newRow()])}>
                     ＋ Adicionar pessoa
                   </button>
-                  <button type="button" className="btn small" onClick={pickContacts}>
-                    Importar vários contatos
+                  {pickerAvailable && (
+                    <button type="button" className="btn small" onClick={pickContacts}>
+                      📇 Escolher da agenda
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className={`btn small ${importOpen ? "primary" : ""}`}
+                    onClick={() => setImportOpen(o => !o)}
+                  >
+                    📋 Colar lista ou arquivo .vcf
                   </button>
                 </div>
+
+                {importOpen && (
+                  <div className="import-box">
+                    <p className="help">
+                      Um contato por linha, no formato <strong>Nome, telefone</strong> (o telefone é opcional). Você também
+                      pode enviar um arquivo <strong>.vcf</strong> exportado da agenda do celular.
+                      {mode === "pessoa" && " No modo pessoa, cada contato vira um convite individual."}
+                    </p>
+                    <textarea
+                      rows={5}
+                      value={importText}
+                      onChange={e => setImportText(e.target.value)}
+                      placeholder={"Maria Souza, (48) 99999-1234\nJoão Silva, 48 98888-0000\nAna Lima"}
+                    />
+                    <div className="import-actions">
+                      <label className="btn small file-btn">
+                        📎 Enviar arquivo
+                        <input
+                          type="file"
+                          accept=".vcf,.vcard,.txt,.csv,text/vcard,text/x-vcard,text/plain,text/csv"
+                          onChange={e => {
+                            readFile(e.target.files?.[0]);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                      <span className="help">{parsedImport.length} contato(s) reconhecido(s)</span>
+                      <button
+                        type="button"
+                        className="btn small primary"
+                        disabled={!parsedImport.length || importing}
+                        onClick={confirmImport}
+                      >
+                        {importing ? "Importando…" : `Importar ${parsedImport.length || ""}`}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="guests">
                   {rows.map(r => (
                     <div className="guestrow" key={r.key}>

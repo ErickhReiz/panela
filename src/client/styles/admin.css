@@ -145,3 +145,11 @@
   .dialog { max-height: 96vh; }
   .nav-icon { width: 62px; }
 }
+
+/* Importação de contatos */
+.import-box { border: 1px dashed #cfc9bb; border-radius: 12px; padding: 14px; margin-bottom: 14px; background: #faf8f2; }
+.import-box .help { margin: 0 0 10px; }
+.import-box textarea { width: 100%; padding: 11px 12px; border: 1px solid #dcd8ce; border-radius: 9px; background: #fff; color: var(--ink); resize: vertical; }
+.import-actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.import-actions .help { margin: 0; flex: 1; }
+.file-btn input { display: none; }
