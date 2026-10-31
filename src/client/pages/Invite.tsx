@@ -116,8 +116,14 @@ export function InvitePage({ code, mode }: { code: string; mode?: InviteMode }) 
 
         <section className="section-card">
           <h2 className="section-title">Confirme sua presença</h2>
-          <p className="section-sub">Por favor, confirme a presença de cada um dos convidados abaixo.</p>
-          <p className="restricted">🔒 Este convite é nominal e restrito exclusivamente às pessoas listadas abaixo.</p>
+          <p className="section-sub">
+            {invite.guests.length > 1
+              ? "Por favor, confirme a presença de cada um dos convidados abaixo."
+              : "Por favor, confirme sua presença abaixo."}
+          </p>
+          <p className="restricted">
+            🔒 Este convite é nominal e restrito {invite.guests.length > 1 ? "às pessoas listadas abaixo" : "a você"}.
+          </p>
 
           <form onSubmit={submit}>
             <div className="guest-list">

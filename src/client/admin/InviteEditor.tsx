@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { EventConfig, Guest, Invitation, invitePath, slugify } from "../../shared/types";
+import { EventConfig, Guest, Invitation, InviteMode, invitePath, slugify } from "../../shared/types";
 import { api } from "../api";
 import { Contact, hasContactPicker, parseContacts, phoneKey, pickFromAgenda } from "./contacts";
 import { InvitePreview } from "./InvitePreview";
@@ -9,6 +9,7 @@ type Row = { key: string; id: string; name: string; phone: string };
 
 interface Props {
   invite: Invitation | null;
+  mode: InviteMode;
   focusGuestId?: string;
   config: EventConfig;
   allInvites: Invitation[];
@@ -22,13 +23,14 @@ let rowSeq = 0;
 const newRow = (name = "", phone = "", id = ""): Row => ({ key: `r${++rowSeq}`, id, name, phone });
 const newGuestId = (i: number) => `g_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`;
 
-export function InviteEditor({ invite, focusGuestId, config, allInvites, showToast, onClose, onSaved, onReload }: Props) {
-  const mode = invite?.mode || config.sendMode || "familia";
+export function InviteEditor({ invite, mode, focusGuestId, config, allInvites, showToast, onClose, onSaved, onReload }: Props) {
+  const isFamily = mode === "familia";
   const [tab, setTab] = useState<"edit" | "preview">("edit");
   const [title, setTitle] = useState(invite?.title || "");
   const [code, setCode] = useState(invite?.code || "");
+  const [showCode, setShowCode] = useState(false);
   const [rows, setRows] = useState<Row[]>(() =>
-    invite ? invite.guests.map(g => newRow(g.name, g.phone || "", g.id)) : [newRow()]
+    invite?.guests.length ? invite.guests.map(g => newRow(g.name, g.phone || "", g.id)) : [newRow()]
   );
   const [saving, setSaving] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -39,17 +41,26 @@ export function InviteEditor({ invite, focusGuestId, config, allInvites, showToa
   const parsedImport = importOpen ? parseContacts(importText) : [];
 
   useEffect(() => {
-    if (!focusGuestId) return;
-    formRef.current?.querySelector<HTMLInputElement>(`[data-guest-id="${focusGuestId}"]`)?.focus();
+    const target = focusGuestId ? `[data-guest-id="${focusGuestId}"]` : "#title";
+    formRef.current?.querySelector<HTMLInputElement>(target)?.focus();
   }, [focusGuestId]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
 
   const effectiveCode = slugify(code || title);
   const link = window.location.origin + invitePath(mode, effectiveCode || "seu-convite");
-  const recipient =
-    (mode === "familia" ? "Família · " : "Convidado · ") +
-    (title || "Seu convite") +
-    " — " +
-    rows.map(r => r.name.trim()).filter(Boolean).join(", ");
+  const person = rows[0];
+  const recipient = isFamily
+    ? `Família · ${title || "Seu convite"} — ${rows.map(r => r.name.trim()).filter(Boolean).join(", ")}`
+    : `Convidado · ${title || "Nome da pessoa"}`;
 
   const updateRow = (key: string, patch: Partial<Row>) =>
     setRows(prev => prev.map(r => (r.key === key ? { ...r, ...patch } : r)));
@@ -57,8 +68,10 @@ export function InviteEditor({ invite, focusGuestId, config, allInvites, showToa
   function changeTitle(value: string) {
     setTitle(value);
     if (!invite) setCode(slugify(value));
+    if (!isFamily) updateRow(person.key, { name: value });
   }
 
+  // ---------- Importação ----------
   async function pickContacts() {
     try {
       await importContacts(await pickFromAgenda());
@@ -85,33 +98,32 @@ export function InviteEditor({ invite, focusGuestId, config, allInvites, showToa
     }
   }
 
-  /** Adiciona contatos ao convite (família) ou cria um convite por contato (pessoa). */
+  /** Família: adiciona membros a este convite. Pessoa: cria um convite por contato. */
   async function importContacts(selected: Contact[]): Promise<boolean> {
+    if (!selected.length) {
+      showToast("Nenhum contato encontrado");
+      return false;
+    }
+
+    if (isFamily) {
+      const seen = new Set(rows.map(r => phoneKey(r.phone)).filter(Boolean));
+      const additions: Row[] = [];
+      for (const c of selected) {
+        const key = phoneKey(c.phone);
+        if (key && seen.has(key)) continue;
+        if (key) seen.add(key);
+        additions.push(newRow(c.name, c.phone));
+      }
+      setRows(prev => [...prev.filter(r => r.name.trim() || r.phone.trim()), ...additions]);
+      showToast(`${additions.length} pessoa(s) adicionada(s) à família`);
+      return true;
+    }
+
+    const seen = new Set(allInvites.flatMap(i => i.guests.map(g => phoneKey(g.phone))).filter(Boolean));
+    const usedCodes = new Set(allInvites.map(i => i.code));
+    let created = 0;
+    let duplicates = 0;
     try {
-      if (!selected.length) {
-        showToast("Nenhum contato encontrado");
-        return false;
-      }
-
-      if (mode === "familia") {
-        const seen = new Set(rows.map(r => phoneKey(r.phone)).filter(Boolean));
-        const additions: Row[] = [];
-        for (const c of selected) {
-          const key = phoneKey(c.phone);
-          if (key && seen.has(key)) continue;
-          if (key) seen.add(key);
-          additions.push(newRow(c.name, c.phone));
-        }
-        setRows(prev => [...prev.filter(r => r.name.trim() || r.phone.trim()), ...additions]);
-        showToast(`${additions.length} contato(s) adicionado(s) à família`);
-        return true;
-      }
-
-      // Modo pessoa: um convite individual por contato.
-      const seen = new Set(allInvites.flatMap(i => i.guests.map(g => phoneKey(g.phone))).filter(Boolean));
-      const usedCodes = new Set(allInvites.map(i => i.code));
-      let created = 0;
-      let duplicates = 0;
       for (const c of selected) {
         const key = phoneKey(c.phone);
         if (key && seen.has(key)) {
@@ -132,25 +144,23 @@ export function InviteEditor({ invite, focusGuestId, config, allInvites, showToa
           usedCodes.add(unique);
           if (key) seen.add(key);
         } catch {
-          /* ignora contato com erro e segue */
+          /* segue para o próximo contato */
         }
       }
+    } finally {
       await onReload();
-      showToast(
-        `${created} convite(s) individual(is) criado(s)` + (duplicates ? `, ${duplicates} duplicado(s) ignorado(s)` : "")
-      );
-      if (created) onClose();
-      return created > 0;
-    } catch {
-      showToast("Não foi possível importar os contatos");
-      return false;
     }
+    showToast(`${created} convidado(s) criado(s)` + (duplicates ? `, ${duplicates} já existiam` : ""));
+    if (created) onClose();
+    return created > 0;
   }
 
+  // ---------- Salvar ----------
   async function save(e: FormEvent) {
     e.preventDefault();
     const previous = invite?.guests || [];
-    const guests: Guest[] = rows
+    const sourceRows = isFamily ? rows : [{ ...person, name: title }];
+    const guests: Guest[] = sourceRows
       .map((r, i) => {
         const prior = previous.find(g => g.id === r.id);
         return {
@@ -166,7 +176,7 @@ export function InviteEditor({ invite, focusGuestId, config, allInvites, showToa
 
     if (!title.trim()) {
       setTab("edit");
-      showToast("Informe o nome do convite");
+      showToast(isFamily ? "Informe o nome da família" : "Informe o nome da pessoa");
       return;
     }
     if (!guests.length) {
@@ -174,9 +184,12 @@ export function InviteEditor({ invite, focusGuestId, config, allInvites, showToa
       showToast("Adicione ao menos uma pessoa");
       return;
     }
-    if (mode === "pessoa" && guests.length > 1) {
-      showToast("No modo pessoa, use a importação múltipla para criar convites individuais");
-      return;
+    if (!isFamily && !invite) {
+      const key = phoneKey(person.phone);
+      if (key && allInvites.some(i => i.guests.some(g => phoneKey(g.phone) === key))) {
+        showToast("Já existe um convidado com este telefone");
+        return;
+      }
     }
 
     setSaving(true);
@@ -184,7 +197,7 @@ export function InviteEditor({ invite, focusGuestId, config, allInvites, showToa
       const payload = { code: effectiveCode, title: title.trim(), mode, guests };
       if (invite) await api.updateInvite(invite.code, payload);
       else await api.createInvite(payload);
-      showToast("Convite salvo");
+      showToast(isFamily ? "Família salva" : "Convidado salvo");
       onSaved();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Erro ao salvar");
@@ -193,178 +206,180 @@ export function InviteEditor({ invite, focusGuestId, config, allInvites, showToa
     }
   }
 
+  const heading = invite ? (isFamily ? "Editar família" : "Editar convidado") : isFamily ? "Nova família" : "Novo convidado";
+
   return (
     <div className="overlay" onMouseDown={e => e.target === e.currentTarget && onClose()}>
-      <section className="dialog" role="dialog" aria-modal="true" aria-labelledby="invite-heading">
-        <header className="dialog-head">
-          <h2 id="invite-heading">{invite ? "Editar convite" : "Novo convite"}</h2>
-          <button className="x" onClick={onClose} aria-label="Fechar">
-            ×
+      <section className="sheet" role="dialog" aria-modal="true" aria-labelledby="invite-heading">
+        <header className="sheet-head">
+          <button className="icon-btn" onClick={onClose} aria-label="Fechar">
+            ✕
           </button>
+          <h2 id="invite-heading">{heading}</h2>
+          <span className="icon-btn-spacer" />
         </header>
-        <div className="tabs">
-          <button className={`tab ${tab === "edit" ? "active" : ""}`} onClick={() => setTab("edit")}>
-            1. Dados do convite
+        <div className="segmented">
+          <button className={tab === "edit" ? "active" : ""} onClick={() => setTab("edit")}>
+            Dados
           </button>
-          <button className={`tab ${tab === "preview" ? "active" : ""}`} onClick={() => setTab("preview")}>
-            2. Preview
+          <button className={tab === "preview" ? "active" : ""} onClick={() => setTab("preview")}>
+            Prévia
           </button>
         </div>
 
-        <form ref={formRef} onSubmit={save} noValidate>
+        <form ref={formRef} onSubmit={save} noValidate className="sheet-body">
           {tab === "edit" ? (
-            <section className="tabpane">
+            <>
               <div className="field">
-                <label>Modo de envio</label>
-                <div className="mode-mode">
-                  {mode === "familia" ? "Família · vários convidados no mesmo link" : "Pessoa · um convite por contato"}
-                  {invite ? " · modo deste convite" : " · definido nas configurações"}
-                </div>
-                <p className="help">
-                  {mode === "familia"
-                    ? "Os contatos importados serão reunidos neste convite de família."
-                    : "Cada contato importado cria um convite individual; números já cadastrados são ignorados."}
-                </p>
+                <label htmlFor="title">{isFamily ? "Nome da família" : "Nome da pessoa"}</label>
+                <input
+                  id="title"
+                  value={title}
+                  onChange={e => changeTitle(e.target.value)}
+                  placeholder={isFamily ? "Ex.: Família Amaral" : "Ex.: Maria Souza"}
+                  autoComplete="off"
+                  required
+                />
               </div>
 
-              <div className="editor-grid">
+              {!isFamily && (
                 <div className="field">
-                  <label htmlFor="title">{mode === "familia" ? "Nome da família" : "Nome da pessoa"}</label>
+                  <label htmlFor="phone">Telefone (WhatsApp)</label>
                   <input
-                    id="title"
-                    value={title}
-                    onChange={e => changeTitle(e.target.value)}
-                    placeholder="Ex.: Família Amaral"
-                    required
+                    id="phone"
+                    type="tel"
+                    inputMode="tel"
+                    value={person.phone}
+                    onChange={e => updateRow(person.key, { phone: e.target.value })}
+                    placeholder="(48) 99999-1234"
+                    autoComplete="off"
                   />
                 </div>
-                <div className="field">
-                  <label htmlFor="code">Endereço do link (opcional)</label>
-                  <input
-                    id="code"
-                    value={code}
-                    onChange={e => setCode(e.target.value)}
-                    placeholder="familia-amaral"
-                    disabled={!!invite}
-                  />
-                  <p className="help">Link gerado: {link}</p>
-                </div>
-              </div>
+              )}
 
               <div className="field">
-                <label>Convidados</label>
-                <div className="toolbar">
-                  <button type="button" className="btn small" onClick={() => setRows(prev => [...prev, newRow()])}>
-                    ＋ Adicionar pessoa
-                  </button>
-                  {pickerAvailable && (
-                    <button type="button" className="btn small" onClick={pickContacts}>
-                      📇 Escolher da agenda
+                <div className="link-preview">
+                  <span className="help">Link: {link}</span>
+                  {!invite && (
+                    <button type="button" className="link-btn" onClick={() => setShowCode(s => !s)}>
+                      {showCode ? "ocultar" : "personalizar"}
                     </button>
                   )}
-                  <button
-                    type="button"
-                    className={`btn small ${importOpen ? "primary" : ""}`}
-                    onClick={() => setImportOpen(o => !o)}
-                  >
-                    📋 Colar lista ou arquivo .vcf
+                </div>
+                {showCode && !invite && (
+                  <input value={code} onChange={e => setCode(e.target.value)} placeholder="familia-amaral" aria-label="Endereço do link" />
+                )}
+              </div>
+
+              {isFamily && (
+                <div className="field">
+                  <label>Pessoas da família</label>
+                  <div className="guests">
+                    {rows.map((r, i) => (
+                      <div className="guestrow" key={r.key}>
+                        <span className="guest-num">{i + 1}</span>
+                        <div className="guest-inputs">
+                          <input
+                            data-guest-id={r.id || undefined}
+                            value={r.name}
+                            onChange={e => updateRow(r.key, { name: e.target.value })}
+                            placeholder="Nome completo"
+                            autoComplete="off"
+                          />
+                          <input
+                            type="tel"
+                            inputMode="tel"
+                            value={r.phone}
+                            onChange={e => updateRow(r.key, { phone: e.target.value })}
+                            placeholder="Telefone (opcional)"
+                            autoComplete="off"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="icon-btn danger"
+                          aria-label={`Remover ${r.name || "pessoa"}`}
+                          onClick={() => setRows(prev => (prev.length > 1 ? prev.filter(x => x.key !== r.key) : [newRow()]))}
+                        >
+                          🗑
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" className="btn block ghost" onClick={() => setRows(prev => [...prev, newRow()])}>
+                    ＋ Adicionar pessoa
                   </button>
                 </div>
+              )}
 
-                {importOpen && (
-                  <div className="import-box">
-                    <p className="help">
-                      Um contato por linha, no formato <strong>Nome, telefone</strong> (o telefone é opcional). Você também
-                      pode enviar um arquivo <strong>.vcf</strong> exportado da agenda do celular.
-                      {mode === "pessoa" && " No modo pessoa, cada contato vira um convite individual."}
-                    </p>
-                    <textarea
-                      rows={5}
-                      value={importText}
-                      onChange={e => setImportText(e.target.value)}
-                      placeholder={"Maria Souza, (48) 99999-1234\nJoão Silva, 48 98888-0000\nAna Lima"}
-                    />
-                    <div className="import-actions">
-                      <label className="btn small file-btn">
-                        📎 Enviar arquivo
-                        <input
-                          type="file"
-                          accept=".vcf,.vcard,.txt,.csv,text/vcard,text/x-vcard,text/plain,text/csv"
-                          onChange={e => {
-                            readFile(e.target.files?.[0]);
-                            e.target.value = "";
-                          }}
-                        />
-                      </label>
-                      <span className="help">{parsedImport.length} contato(s) reconhecido(s)</span>
-                      <button
-                        type="button"
-                        className="btn small primary"
-                        disabled={!parsedImport.length || importing}
-                        onClick={confirmImport}
-                      >
-                        {importing ? "Importando…" : `Importar ${parsedImport.length || ""}`}
+              {(isFamily || !invite) && (
+                <div className="field">
+                  <label>{isFamily ? "Importar pessoas" : "Cadastrar vários de uma vez"}</label>
+                  <div className="toolbar">
+                    {pickerAvailable && (
+                      <button type="button" className="btn small" onClick={pickContacts}>
+                        📇 Da agenda
                       </button>
-                    </div>
+                    )}
+                    <button type="button" className={`btn small ${importOpen ? "primary" : ""}`} onClick={() => setImportOpen(o => !o)}>
+                      📋 Colar lista / .vcf
+                    </button>
                   </div>
-                )}
-                <div className="guests">
-                  {rows.map(r => (
-                    <div className="guestrow" key={r.key}>
-                      <input
-                        className="guestname"
-                        data-guest-id={r.id || undefined}
-                        value={r.name}
-                        onChange={e => updateRow(r.key, { name: e.target.value })}
-                        placeholder="Nome completo"
+                  {importOpen && (
+                    <div className="import-box">
+                      <p className="help">
+                        Um contato por linha: <strong>Nome, telefone</strong> (telefone opcional), ou envie um arquivo{" "}
+                        <strong>.vcf</strong> exportado da agenda.
+                        {!isFamily && " Cada contato vira um convite individual."}
+                      </p>
+                      <textarea
+                        rows={5}
+                        value={importText}
+                        onChange={e => setImportText(e.target.value)}
+                        placeholder={"Maria Souza, (48) 99999-1234\nJoão Silva, 48 98888-0000\nAna Lima"}
                       />
-                      <input
-                        className="guestphone"
-                        inputMode="tel"
-                        value={r.phone}
-                        onChange={e => updateRow(r.key, { phone: e.target.value })}
-                        placeholder="Telefone"
-                      />
-                      <button
-                        type="button"
-                        className="btn small"
-                        onClick={() => setRows(prev => prev.filter(x => x.key !== r.key))}
-                      >
-                        Remover
-                      </button>
+                      <div className="import-actions">
+                        <label className="btn small file-btn">
+                          📎 Arquivo
+                          <input
+                            type="file"
+                            accept=".vcf,.vcard,.txt,.csv,text/vcard,text/x-vcard,text/plain,text/csv"
+                            onChange={e => {
+                              readFile(e.target.files?.[0]);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                        <span className="help">{parsedImport.length} reconhecido(s)</span>
+                        <button
+                          type="button"
+                          className="btn small primary"
+                          disabled={!parsedImport.length || importing}
+                          onClick={confirmImport}
+                        >
+                          {importing ? "Importando…" : "Importar"}
+                        </button>
+                      </div>
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-
-              <div className="foot">
-                <button type="button" className="btn" onClick={onClose}>
-                  Cancelar
-                </button>
-                <button type="button" className="btn" onClick={() => setTab("preview")}>
-                  Ver preview
-                </button>
-                <button type="submit" className="btn primary" disabled={saving}>
-                  {saving ? "Salvando…" : "Salvar convite"}
-                </button>
-              </div>
-            </section>
+              )}
+            </>
           ) : (
-            <section className="tabpane">
+            <>
               <InvitePreview config={config} recipient={recipient} />
-              <p className="help center">
-                A prévia mostra a paleta atual. Edite data, local, cores, bordas e sombra em Configurações.
-              </p>
-              <div className="foot">
-                <button type="button" className="btn" onClick={() => setTab("edit")}>
-                  Voltar à edição
-                </button>
-                <button type="submit" className="btn primary" disabled={saving}>
-                  {saving ? "Salvando…" : "Salvar convite"}
-                </button>
-              </div>
-            </section>
+              <p className="help center">Cores, data e local são editados em Configurar.</p>
+            </>
           )}
+
+          <footer className="sheet-foot">
+            <button type="button" className="btn" onClick={onClose}>
+              Cancelar
+            </button>
+            <button type="submit" className="btn primary grow" disabled={saving}>
+              {saving ? "Salvando…" : "Salvar"}
+            </button>
+          </footer>
         </form>
       </section>
     </div>
