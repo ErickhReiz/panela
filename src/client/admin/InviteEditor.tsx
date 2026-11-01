@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { EventConfig, Guest, Invitation, InviteMode, invitePath, slugify } from "../../shared/types";
 import { api } from "../api";
-import { Contact, hasContactPicker, parseContacts, phoneKey, pickFromAgenda } from "./contacts";
+import { ContactPickerHelp } from "./ContactPickerHelp";
+import { Contact, hasContactPicker, phoneKey, pickFromAgenda } from "./contacts";
 import { InvitePreview } from "./InvitePreview";
 import type { ShowToast } from "./useToast";
 
@@ -33,12 +34,9 @@ export function InviteEditor({ invite, mode, focusGuestId, config, allInvites, s
     invite?.guests.length ? invite.guests.map(g => newRow(g.name, g.phone || "", g.id)) : [newRow()]
   );
   const [saving, setSaving] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
-  const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState(false);
+  const [pickerHelp, setPickerHelp] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const pickerAvailable = hasContactPicker();
-  const parsedImport = importOpen ? parseContacts(importText) : [];
 
   useEffect(() => {
     const target = focusGuestId ? `[data-guest-id="${focusGuestId}"]` : "#title";
@@ -73,26 +71,19 @@ export function InviteEditor({ invite, mode, focusGuestId, config, allInvites, s
 
   // ---------- Importação ----------
   async function pickContacts() {
+    if (!hasContactPicker()) {
+      setPickerHelp(true);
+      return;
+    }
+    setImporting(true);
     try {
       await importContacts(await pickFromAgenda());
     } catch (err) {
-      if ((err as Error)?.name !== "AbortError") showToast("Não foi possível importar os contatos selecionados");
-    }
-  }
-
-  async function readFile(file: File | undefined) {
-    if (!file) return;
-    const text = await file.text();
-    setImportText(prev => (prev.trim() ? prev.trimEnd() + "\n" : "") + text);
-  }
-
-  async function confirmImport() {
-    setImporting(true);
-    try {
-      if (await importContacts(parsedImport)) {
-        setImportText("");
-        setImportOpen(false);
-      }
+      const name = (err as Error)?.name;
+      if (name === "AbortError") return;
+      // SecurityError/InvalidStateError: aparelho bloqueou o acesso.
+      if (name === "SecurityError" || name === "NotAllowedError") setPickerHelp(true);
+      else showToast("Não foi possível importar os contatos selecionados");
     } finally {
       setImporting(false);
     }
@@ -315,53 +306,13 @@ export function InviteEditor({ invite, mode, focusGuestId, config, allInvites, s
               {(isFamily || !invite) && (
                 <div className="field">
                   <label>{isFamily ? "Importar pessoas" : "Cadastrar vários de uma vez"}</label>
-                  <div className="toolbar">
-                    {pickerAvailable && (
-                      <button type="button" className="btn small" onClick={pickContacts}>
-                        📇 Da agenda
-                      </button>
-                    )}
-                    <button type="button" className={`btn small ${importOpen ? "primary" : ""}`} onClick={() => setImportOpen(o => !o)}>
-                      📋 Colar lista / .vcf
-                    </button>
-                  </div>
-                  {importOpen && (
-                    <div className="import-box">
-                      <p className="help">
-                        Um contato por linha: <strong>Nome, telefone</strong> (telefone opcional), ou envie um arquivo{" "}
-                        <strong>.vcf</strong> exportado da agenda.
-                        {!isFamily && " Cada contato vira um convite individual."}
-                      </p>
-                      <textarea
-                        rows={5}
-                        value={importText}
-                        onChange={e => setImportText(e.target.value)}
-                        placeholder={"Maria Souza, (48) 99999-1234\nJoão Silva, 48 98888-0000\nAna Lima"}
-                      />
-                      <div className="import-actions">
-                        <label className="btn small file-btn">
-                          📎 Arquivo
-                          <input
-                            type="file"
-                            accept=".vcf,.vcard,.txt,.csv,text/vcard,text/x-vcard,text/plain,text/csv"
-                            onChange={e => {
-                              readFile(e.target.files?.[0]);
-                              e.target.value = "";
-                            }}
-                          />
-                        </label>
-                        <span className="help">{parsedImport.length} reconhecido(s)</span>
-                        <button
-                          type="button"
-                          className="btn small primary"
-                          disabled={!parsedImport.length || importing}
-                          onClick={confirmImport}
-                        >
-                          {importing ? "Importando…" : "Importar"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  <button type="button" className="btn block" onClick={pickContacts} disabled={importing}>
+                    {importing ? "Importando…" : "📇 Escolher da agenda"}
+                  </button>
+                  <p className="help">
+                    Selecione um ou mais contatos do celular.
+                    {isFamily ? " Eles entram como pessoas desta família." : " Cada contato vira um convite individual."}
+                  </p>
                 </div>
               )}
             </>
@@ -382,6 +333,7 @@ export function InviteEditor({ invite, mode, focusGuestId, config, allInvites, s
           </footer>
         </form>
       </section>
+      {pickerHelp && <ContactPickerHelp onClose={() => setPickerHelp(false)} />}
     </div>
   );
 }
