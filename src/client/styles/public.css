@@ -134,3 +134,45 @@ button, input, textarea, select { font: inherit; }
   .details-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
   .rsvp-options { gap: 10px; }
 }
+
+/* ---------- Lista de presentes (Havan) ---------- */
+.gift-status { text-align: center; color: var(--muted); padding: 24px 8px; }
+.gift-filters {
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  margin: 14px -16px 14px; padding: 0 16px 2px;
+}
+.gift-filters::-webkit-scrollbar { display: none; }
+.gift-filter {
+  flex: 0 0 auto; padding: 6px 14px; border-radius: 999px; cursor: pointer; font-size: .82rem;
+  border: 1px solid var(--line); background: transparent; color: var(--primary); white-space: nowrap;
+}
+.gift-filter.active { background: var(--primary); border-color: var(--primary); color: var(--card); }
+.gift-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.gift-card {
+  display: flex; flex-direction: column; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--card);
+}
+.gift-img-wrap { position: relative; background: #fff; aspect-ratio: 1 / 1; }
+.gift-img { width: 100%; height: 100%; object-fit: contain; padding: 8px; display: block; }
+.gift-badge {
+  position: absolute; left: 6px; top: 6px; padding: 2px 8px; border-radius: 999px;
+  font-size: .68rem; font-weight: 700; background: color-mix(in srgb, var(--primary) 88%, transparent); color: var(--card);
+}
+.gift-body { display: flex; flex-direction: column; gap: 2px; padding: 10px; flex: 1; }
+.gift-name {
+  font-size: .84rem; font-weight: 600; line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.gift-variation { font-size: .74rem; color: var(--muted); }
+.gift-price { margin-top: auto; padding-top: 6px; font-weight: 700; font-size: 1rem; }
+.gift-installments { font-size: .7rem; color: var(--muted); }
+.gift-buy {
+  margin-top: 8px; display: block; text-align: center; text-decoration: none; font-weight: 600; font-size: .85rem;
+  padding: 9px 6px; border-radius: var(--radius-md); background: var(--primary); color: var(--card);
+}
+.gift-buy:active { transform: scale(0.98); }
+.gift-footnote { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 14px; }
+.gift-footnote a { color: var(--primary); }
+@media (min-width: 560px) {
+  .gift-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+}

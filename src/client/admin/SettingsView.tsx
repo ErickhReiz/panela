@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import type { EventConfig, InviteMode } from "../../shared/types";
+import { havanListId } from "../../shared/types";
 import { api } from "../api";
 import { InvitePreview } from "./InvitePreview";
 import type { ShowToast } from "./useToast";
@@ -142,6 +143,11 @@ export function SettingsView({ config, counts, showToast, onSaved }: Props) {
           <div className="field">
             <label>Lista de presentes</label>
             <input inputMode="url" {...text("giftRegistryUrl")} placeholder="Deixe # para ocultar" />
+            {havanListId(draft.giftRegistryUrl) && (
+              <small className="field-hint">
+                ✓ Lista Havan #{havanListId(draft.giftRegistryUrl)} detectada — os presentes aparecem como cards no convite.
+              </small>
+            )}
           </div>
         </div>
         <div className="field">

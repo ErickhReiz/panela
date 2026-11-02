@@ -76,3 +76,40 @@ export function slugify(value: string): string {
 export function invitePath(mode: InviteMode | undefined, code: string): string {
   return mode === "pessoa" ? `/${code}` : `/familia/${code}`;
 }
+
+/** Item da lista de presentes da Havan (lido do site da Havan pelo Worker). */
+export interface GiftItem {
+  /** `${idProduto}-${idVariacao}` */
+  id: string;
+  name: string;
+  variation?: string;
+  price: number;
+  priceLabel: string;
+  installments?: string;
+  imageUrl: string;
+  /** Quantidade que ainda falta presentear. */
+  remaining: number;
+  virtual: boolean;
+}
+
+export interface GiftList {
+  listId: string;
+  total: number;
+  items: GiftItem[];
+  /** Página da lista na Havan, onde o convidado finaliza a compra. */
+  buyUrl: string;
+  fetchedAt: string;
+  /** true quando a Havan falhou e devolvemos a última cópia salva. */
+  stale?: boolean;
+}
+
+/** Extrai o ID da lista de uma URL da Havan (".../ItensListaPresente/969853..."). */
+export function havanListId(url: string | undefined): string | null {
+  if (!url || !/havan\.com\.br/i.test(url)) return null;
+  const match = url.match(/ItensListaPresente\/(\d+)/i) || url.match(/[?&]idLista=(\d+)/i);
+  return match ? match[1] : null;
+}
+
+export function havanListUrl(listId: string): string {
+  return `https://lista.havan.com.br/Convidado/ItensListaPresente/${listId}?aba=presentes`;
+}

@@ -1,6 +1,8 @@
 import { DB } from "./db";
 import type { EventConfig, Invitation, RsvpResponse } from "../src/shared/types";
-import { slugify } from "../src/shared/types";
+import { havanListId, slugify } from "../src/shared/types";
+import type { GiftList } from "../src/shared/types";
+import { fetchHavanList } from "./havan";
 
 export interface Env {
   cha_panela_kv: KVNamespace;
@@ -9,6 +11,8 @@ export interface Env {
 }
 
 const SESSION_COOKIE = "admin_session";
+/** Tempo (s) que a lista da Havan fica em cache antes de ser lida de novo. */
+const GIFTS_TTL = 120;
 
 const json = (data: unknown, status = 200, headers: HeadersInit = {}) =>
   new Response(JSON.stringify(data), {
@@ -41,7 +45,42 @@ async function readJson<T>(request: Request): Promise<T | null> {
   }
 }
 
-async function handleApi(request: Request, env: Env, url: URL): Promise<Response> {
+/**
+ * Lista de presentes da Havan: cache curto (Cache API) para ficar "quase em tempo real"
+ * sem sobrecarregar a Havan, e última cópia boa no KV caso a Havan esteja fora.
+ */
+async function handleGifts(db: DB, env: Env, ctx: ExecutionContext): Promise<Response> {
+  const listId = havanListId((await db.getConfig()).giftRegistryUrl);
+  if (!listId) return fail("Lista de presentes da Havan não configurada.", 404);
+
+  const cache = caches.default;
+  const cacheKey = new Request(`https://panela.cache/api/gifts?list=${listId}`);
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+
+  const kvKey = `gifts:${listId}`;
+  try {
+    const list = await fetchHavanList(listId);
+    const response = json(list, 200, { "Cache-Control": `public, max-age=${GIFTS_TTL}` });
+    ctx.waitUntil(cache.put(cacheKey, response.clone()));
+    ctx.waitUntil(
+      (async () => {
+        const saved = (await env.cha_panela_kv.get(kvKey, "json")) as GiftList | null;
+        if (!saved || JSON.stringify(saved.items) !== JSON.stringify(list.items)) {
+          await env.cha_panela_kv.put(kvKey, JSON.stringify(list));
+        }
+      })()
+    );
+    return response;
+  } catch (err) {
+    console.error("Falha ao ler lista da Havan:", err);
+    const saved = (await env.cha_panela_kv.get(kvKey, "json")) as GiftList | null;
+    if (saved) return json({ ...saved, stale: true }, 200, { "Cache-Control": "public, max-age=30" });
+    return fail("Não foi possível carregar a lista de presentes agora.", 502);
+  }
+}
+
+async function handleApi(request: Request, env: Env, url: URL, ctx: ExecutionContext): Promise<Response> {
   if (!env.cha_panela_kv) {
     return fail("Binding KV 'cha_panela_kv' não encontrado no wrangler.toml.", 500);
   }
@@ -54,6 +93,10 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
   // ---------- Público ----------
   if (pathname === "/api/config" && method === "GET") {
     return json(await db.getConfig());
+  }
+
+  if (pathname === "/api/gifts" && method === "GET") {
+    return handleGifts(db, env, ctx);
   }
 
   if (parts[1] === "invites" && parts[2] && method === "GET") {
@@ -176,11 +219,11 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
 }
 
 export default {
-  async fetch(request, env): Promise<Response> {
+  async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/")) {
       try {
-        return await handleApi(request, env, url);
+        return await handleApi(request, env, url, ctx);
       } catch (err) {
         console.error(err);
         return fail("Erro interno.", 500);

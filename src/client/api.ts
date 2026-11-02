@@ -1,4 +1,4 @@
-import type { EventConfig, Invitation, InviteMode, RsvpResponse } from "../shared/types";
+import type { EventConfig, GiftList, Invitation, InviteMode, RsvpResponse } from "../shared/types";
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) {
@@ -27,6 +27,8 @@ export const api = {
     request<Invitation>(`/api/invites/${encodeURIComponent(code)}${mode ? `?mode=${mode}` : ""}`),
   rsvp: (code: string, responses: RsvpResponse[]) =>
     request<{ invite: Invitation }>("/api/rsvp", { method: "POST", body: body({ code, responses }) }),
+
+  gifts: () => request<GiftList>("/api/gifts"),
 
   session: () => request<{ authenticated: boolean }>("/api/admin/session"),
   login: (password: string) => request("/api/admin/login", { method: "POST", body: body({ password }) }),
