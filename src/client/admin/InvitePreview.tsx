@@ -1,41 +1,50 @@
-import type { CSSProperties } from "react";
-import type { EventConfig } from "../../shared/types";
-import { formatEventDate } from "../format";
+import { useEffect, useState } from "react";
+import type { EventConfig, Invitation } from "../../shared/types";
+import { Answer, answersOf, InviteView } from "../pages/InviteView";
 
-/** Prévia do cartão do convite usando a paleta atual. */
-export function InvitePreview({ config, recipient }: { config: EventConfig; recipient: string }) {
-  const style = {
-    "--preview-primary": config.primaryColor,
-    "--preview-secondary": config.secondaryColor,
-    "--preview-card": config.cardColor,
-    "--preview-radius": `${config.cornerRadius}px`,
-    "--preview-shadow": `${config.shadowStrength}px`,
-  } as CSSProperties;
+/**
+ * Prévia do convite: renderiza o MESMO componente da página pública (InviteView),
+ * numa moldura do tamanho de um celular. As respostas são só locais.
+ */
+export function InvitePreview({ config, invite }: { config: EventConfig; invite: Invitation }) {
+  const [answers, setAnswers] = useState<Record<string, Answer>>(() => answersOf(invite));
+  const guestIds = invite.guests.map(g => g.id).join("|");
+
+  // Mantém as respostas alinhadas quando pessoas são adicionadas/removidas no formulário.
+  useEffect(() => {
+    setAnswers(prev => {
+      const base = answersOf(invite);
+      return Object.fromEntries(Object.keys(base).map(id => [id, prev[id] || base[id]]));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guestIds]);
 
   return (
-    <div className="preview-wrap" style={{ background: config.pageColor }}>
-      <div className="invite-preview" style={style}>
-        <div className="ornament">❧　❦　❧</div>
-        <div className="preview-kicker">Você está convidado para</div>
-        <h3 className="preview-title">Chá de panela</h3>
-        <div className="house">⌂ ♥</div>
-        <div className="preview-names">{config.coupleNames}</div>
-        <div className="preview-recipient">{recipient}</div>
-        <p className="preview-msg">{config.welcomeMessage}</p>
-        <div className="preview-divider">— ♥ —</div>
-        <div className="preview-info">
-          <div>▦　{formatEventDate(config, false)}</div>
-          <div>◷　Início às {config.eventTime}</div>
-          <div>
-            ⌖　{config.venueName} · {config.venueAddress}
-          </div>
-        </div>
-        <div className="preview-rsvp">♡　CONFIRME SUA PRESENÇA</div>
-        <div className="preview-end">Será uma alegria ter você conosco!</div>
-        <div className="ornament" style={{ marginTop: 24 }}>
-          ❧　♥　❧
-        </div>
-      </div>
+    <div className="invite-frame" aria-label="Prévia do convite">
+      <InviteView
+        config={config}
+        invite={invite}
+        answers={answers}
+        onAnswer={(id, patch) => setAnswers(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }))}
+      />
     </div>
   );
+}
+
+/** Convite de exemplo para a prévia em Configurar. */
+export function sampleInvite(familia: boolean): Invitation {
+  const now = new Date().toISOString();
+  const guests = (familia ? ["José Exemplo", "Júlia Exemplo"] : ["Maria Souza"]).map((name, i) => ({
+    id: `preview_${i}`,
+    name,
+    confirmed: null,
+  }));
+  return {
+    code: "exemplo",
+    title: familia ? "Família Exemplo" : "Maria Souza",
+    mode: familia ? "familia" : "pessoa",
+    guests,
+    createdAt: now,
+    updatedAt: now,
+  };
 }

@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import type { Invitation, InviteMode } from "../../shared/types";
 import { api, ApiError } from "../api";
+import { themeVars } from "../format";
 import { useConfig } from "../useConfig";
 import { Answer, answersOf, InviteView } from "./InviteView";
 import { NotFound } from "./NotFound";
@@ -68,7 +69,7 @@ export function InvitePage({ code, mode }: { code: string; mode?: InviteMode }) 
   return (
     <>
       <InviteView config={config} invite={invite} answers={answers} onAnswer={setAnswer} onSubmit={submit} saving={saving} />
-      <div className={`toast ${toast ? "show" : ""}`} role="status">
+      <div className={`toast ${toast ? "show" : ""}`} role="status" style={themeVars(config)}>
         {toast}
       </div>
     </>

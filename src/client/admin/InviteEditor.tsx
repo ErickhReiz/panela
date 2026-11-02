@@ -56,9 +56,27 @@ export function InviteEditor({ invite, mode, focusGuestId, config, allInvites, s
   const effectiveCode = slugify(code || title);
   const link = window.location.origin + invitePath(mode, effectiveCode || "seu-convite");
   const person = rows[0];
-  const recipient = isFamily
-    ? `Família · ${title || "Seu convite"} — ${rows.map(r => r.name.trim()).filter(Boolean).join(", ")}`
-    : `Convidado · ${title || "Nome da pessoa"}`;
+  // Convite montado com os dados atuais do formulário, para a prévia.
+  const previewInvite: Invitation = {
+    code: effectiveCode || "seu-convite",
+    title: title.trim() || (isFamily ? "Nome da família" : "Nome da pessoa"),
+    mode,
+    guests: (() => {
+      const filled = rows.filter(r => r.name.trim());
+      const list = filled.length ? filled : [rows[0]];
+      return list.map((r, i) => {
+        const saved = invite?.guests.find(g => g.id === r.id);
+        return {
+          id: r.id || r.key,
+          name: r.name.trim() || (isFamily ? `Pessoa ${i + 1}` : "Nome da pessoa"),
+          confirmed: saved?.confirmed ?? null,
+          dietRestrictions: saved?.dietRestrictions || "",
+        };
+      });
+    })(),
+    createdAt: invite?.createdAt || "",
+    updatedAt: invite?.updatedAt || "",
+  };
 
   const updateRow = (key: string, patch: Partial<Row>) =>
     setRows(prev => prev.map(r => (r.key === key ? { ...r, ...patch } : r)));
@@ -318,7 +336,7 @@ export function InviteEditor({ invite, mode, focusGuestId, config, allInvites, s
             </>
           ) : (
             <>
-              <InvitePreview config={config} recipient={recipient} />
+              <InvitePreview config={config} invite={previewInvite} />
               <p className="help center">Cores, data e local são editados em Configurar.</p>
             </>
           )}

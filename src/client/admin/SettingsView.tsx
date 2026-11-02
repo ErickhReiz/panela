@@ -2,7 +2,7 @@ import { FormEvent, useState } from "react";
 import type { EventConfig, InviteMode } from "../../shared/types";
 import { havanListId } from "../../shared/types";
 import { api } from "../api";
-import { InvitePreview } from "./InvitePreview";
+import { InvitePreview, sampleInvite } from "./InvitePreview";
 import type { ShowToast } from "./useToast";
 
 const PALETTES: Array<{ title: string; colors: [string, string, string, string] }> = [
@@ -188,10 +188,7 @@ export function SettingsView({ config, counts, showToast, onSaved }: Props) {
             <RangeField label="Bordas arredondadas" max={36} value={draft.cornerRadius} onChange={v => set("cornerRadius", v)} />
             <RangeField label="Sombra" max={48} value={draft.shadowStrength} onChange={v => set("shadowStrength", v)} />
           </div>
-          <InvitePreview
-            config={draft}
-            recipient={config.sendMode === "familia" ? "Família · Exemplo — José e Júlia" : "Convidado · Maria Souza"}
-          />
+          <InvitePreview config={draft} invite={sampleInvite(config.sendMode === "familia")} />
         </div>
       </section>
 

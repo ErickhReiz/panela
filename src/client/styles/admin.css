@@ -10,7 +10,8 @@
   font-family: 'DM Sans', sans-serif; line-height: 1.45; -webkit-tap-highlight-color: transparent;
 }
 .admin.loading { display: grid; place-items: center; color: var(--muted); }
-.admin h1, .admin h2, .admin h3 { margin: 0; }
+/* :where() zera a especificidade para não sobrescrever as margens do convite na prévia. */
+:where(.admin) :where(h1, h2, h3) { margin: 0; }
 .admin ul { list-style: none; margin: 0; padding: 0; }
 .grow { flex: 1; min-width: 0; }
 
@@ -184,19 +185,11 @@
 .save-bar.show { transform: none; pointer-events: auto; }
 
 /* ---------- Prévia do convite ---------- */
-.preview-wrap { padding: 14px; border-radius: 14px; display: grid; place-items: center; }
-.invite-preview { width: 100%; max-width: 390px; background: var(--preview-card); border-radius: var(--preview-radius); box-shadow: 0 12px var(--preview-shadow) #142b4a28; padding: 30px 20px; text-align: center; overflow: hidden; color: var(--preview-primary); }
-.ornament { font-size: 20px; letter-spacing: 10px; color: var(--preview-secondary); }
-.preview-kicker { font-size: 10px; letter-spacing: .25em; text-transform: uppercase; margin: 20px 0 6px; }
-.preview-title { font: 500 32px 'Playfair Display', serif; line-height: 1.1; margin: 0 0 14px; }
-.house { font-size: 40px; margin: 10px 0; }
-.preview-names { font: italic 30px 'Playfair Display', serif; margin: 8px 0 12px; }
-.preview-recipient { font-size: 12px; letter-spacing: .05em; margin: -4px auto 14px; color: var(--preview-secondary); }
-.preview-msg { font: 11px 'DM Sans', sans-serif; letter-spacing: .14em; line-height: 1.8; text-transform: uppercase; margin: 0 auto 16px; max-width: 285px; }
-.preview-divider { letter-spacing: 8px; margin: 12px; }
-.preview-info { display: grid; gap: 10px; text-align: left; width: max-content; max-width: 100%; margin: 0 auto; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
-.preview-rsvp { border: 1px solid currentColor; border-radius: 40px; margin: 22px auto 12px; padding: 11px 14px; font-size: 10px; letter-spacing: .12em; max-width: 290px; }
-.preview-end { font: italic 18px 'Playfair Display', serif; margin-top: 12px; }
+.invite-frame {
+  width: 100%; max-width: 400px; margin: 0 auto; border: 1px solid var(--line); border-radius: 22px;
+  overflow: hidden; box-shadow: 0 12px 30px #142b4a1f;
+}
+.invite-frame .public-page { min-height: 0; }
 
 /* ---------- Toast ---------- */
 .admin .toast {

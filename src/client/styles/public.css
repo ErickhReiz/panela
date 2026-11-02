@@ -10,8 +10,12 @@ button, input, textarea, select { font: inherit; }
   --radius-lg: 18px; --radius-md: 12px; --shadow: 24px;
   --muted: #667487; --line: color-mix(in srgb, var(--secondary) 33%, transparent);
   min-height: 100vh; background: var(--page); color: var(--primary);
+  font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1.6; text-align: left;
   display: flex; flex-direction: column; align-items: center; padding: 16px 12px 60px;
 }
+/* O convite responde à largura do próprio container (e não da janela),
+   assim a prévia do painel renderiza igual ao celular do convidado. */
+.invite-scope { container-type: inline-size; }
 .public-page.centered { justify-content: center; padding: 32px 16px; text-align: center; }
 .container { width: 100%; max-width: 680px; margin: 0 auto; }
 .muted { color: var(--muted); }
@@ -126,11 +130,13 @@ button, input, textarea, select { font: inherit; }
 
 /* Telas maiores (mobile first: a base acima é o celular) */
 @media (min-width: 560px) {
-  .public-page { padding: 32px 20px 60px; }
   .hero-card { padding: 44px 32px; }
+  .input-row { flex-direction: row; }
+}
+@container (min-width: 560px) {
+  .public-page { padding: 32px 20px 60px; }
   .header-card { padding: 36px 24px; }
   .section-card { padding: 28px 24px; margin-bottom: 20px; }
-  .input-row { flex-direction: row; }
   .details-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
   .rsvp-options { gap: 10px; }
 }
@@ -173,6 +179,6 @@ button, input, textarea, select { font: inherit; }
 .gift-buy:active { transform: scale(0.98); }
 .gift-footnote { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 14px; }
 .gift-footnote a { color: var(--primary); }
-@media (min-width: 560px) {
+@container (min-width: 560px) {
   .gift-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 }
